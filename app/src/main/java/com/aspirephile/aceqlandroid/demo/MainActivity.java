@@ -11,8 +11,8 @@ import android.widget.TextView;
 
 import org.kawanfw.sql.api.client.android.AceQLDBManager;
 import org.kawanfw.sql.api.client.android.BackendConnection;
-import org.kawanfw.sql.api.client.android.OnGetResultSetListener;
-import org.kawanfw.sql.api.client.android.OnPrepareStatements;
+import org.kawanfw.sql.api.client.android.execute.query.OnGetResultSetListener;
+import org.kawanfw.sql.api.client.android.execute.OnGetPrepareStatement;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -45,20 +45,14 @@ public class MainActivity extends AppCompatActivity {
 
         //This listener tells the database manager what kind of statements to execute
         //We will be using this listener when the execute button is clicked
-        final OnPrepareStatements onPreparedStatementsListener = new OnPrepareStatements() {
+        final OnGetPrepareStatement onPreparedStatementsListener = new OnGetPrepareStatement() {
             @Override
-            public PreparedStatement[] onGetPreparedStatementListener(BackendConnection remoteConnection) {
+            public PreparedStatement onGetPreparedStatement(BackendConnection remoteConnection) {
                 //Get the SQL query from the EditText view
                 String sql = inputView.getText().toString();
                 try {
                     //Prepare it to an executable statement
-                    PreparedStatement preparedStatement = remoteConnection.prepareStatement(sql);
-
-                    //If you want to execute more than one statement at a time,
-                    //simply fill up successive array elements and return it:
-                    PreparedStatement[] preparedStatements = new PreparedStatement[1];
-                    preparedStatements[0] = preparedStatement;
-                    return preparedStatements;
+                    return remoteConnection.prepareStatement(sql);
                 } catch (SQLException e) {
                     //Log and display any error that occurs
                     e.printStackTrace();
@@ -71,26 +65,24 @@ public class MainActivity extends AppCompatActivity {
         //We will be using this listener when the execute button is clicked
         final OnGetResultSetListener onGetResultSetListener = new OnGetResultSetListener() {
             @Override
-            public void onGetResultSets(ResultSet[] resultSets, SQLException e) {
+            public void onGetResultSet(ResultSet resultSet, SQLException e) {
                 if (e != null) {
                     //Log and display any error that occurs
                     e.printStackTrace();
                     outputView.setText(getString(R.string.error_occured) + '\n' + e.getLocalizedMessage() + '\n' + getString(R.string.see_log));
-                } else if (resultSets.length > 0) {
-                    //Since we executed only one query, the result will show up in index 0 of the array
-                    ResultSet rs = resultSets[0];
+                } else if (resultSet!=null) {
 
                     int i = 0;
                     try {
                         //Build the output and display it in the TextView
                         StringBuffer stringBuffer = new StringBuffer("First 5 rows:\n");
-                        while (rs.next() && i < 5) {//While there are rows and we still haven't displayed the first 5 rows
+                        while (resultSet.next() && i < 5) {//While there are rows and we still haven't displayed the first 5 rows
                             i++;
-                            stringBuffer.append(rs.getString(1));
+                            stringBuffer.append(resultSet.getString(1));
                             stringBuffer.append('\n');
                         }
                         //Always close the Result set when your done
-                        rs.close();
+                        resultSet.close();
                         //Finally display the rows
                         outputView.setText(stringBuffer);
                     } catch (SQLException e1) {
@@ -128,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
 
                 //Finally, execute the query by specifying what query (onPreparedStatementsListener),
                 //And what to do once we get the result
-                AceQLDBManager.executePreparedStatements(onPreparedStatementsListener, onGetResultSetListener);
+                AceQLDBManager.executeQuery(onPreparedStatementsListener, onGetResultSetListener);
             }
         });
     }
